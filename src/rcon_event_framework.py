@@ -54,7 +54,7 @@ def mcrcon_wrapper(cmds):
         return []
 
 def get_players():
-    """Get list of tracked players from scoreboard"""
+    """Get list of tracked players from scoreboard and filter for real usernames"""
     player_list_cmd = "scoreboard players list"
     results = mcrcon_wrapper(player_list_cmd)
     
@@ -67,52 +67,64 @@ def get_players():
     match = re.search(r"There are \d+ tracked entity/entities: (.+)", results[0])
     if match:
         players = match.group(1).split(", ")
-        log_to_sql(f"Found tracked players: {players}")
-        return players
+        
+        # New Filtering Logic:
+        # 1. Filter out player names starting with '#' (fake players/storage entities)
+        # 2. Filter out player names longer than 16 characters (invalid/fake players)
+        real_players = [
+            player for player in players 
+            if not player.startswith('#') and len(player) <= 16
+        ]
+        
+        # Log difference for debugging
+        fake_players = [
+            player for player in players 
+            if player.startswith('#') or len(player) > 16
+        ]
+        if fake_players:
+            log_to_sql(f"Filtered out fake players: {fake_players}", "INFO")
+
+        log_to_sql(f"Found and filtered real players: {real_players}")
+        return real_players
     else:
         log_to_sql("Could not parse tracked players from scoreboard", "WARN")
         return []
 
 def start_event(event_data):
-    """Start an event with announcements and setup commands"""
+    """Start an event with announcements and setup commands using RCON batching"""
     log_to_sql(f"Starting event: {event_data.get('name', 'Unknown')}")
+    
+    batched_commands = []
 
-    # Event start announcement
+    # 1. Event start announcement
     event_start_text = f"The {event_data['name']} event is starting"
     json_start_text = {"text": event_start_text, "color": "gold"}
-    display_title_text = f"tellraw @a {json.dumps(json_start_text)}"
+    batched_commands.append(f"tellraw @a {json.dumps(json_start_text)}")
 
-    # Event description
+    # 2. Event description
     event_description_text = f"{event_data['description']}"
     json_desc_text = {"text": event_description_text, "color": "aqua"}
-    display_description_text = f"tellraw @a {json.dumps(json_desc_text)}"
+    batched_commands.append(f"tellraw @a {json.dumps(json_desc_text)}")
 
-    # Display start text
-    result_start_text = mcrcon_wrapper(display_title_text)
-    log_to_sql(f"Event start announcement sent with result: {result_start_text}")
-
-    # Play event start bells
+    # 3. Play wither death sound
+    batched_commands.append('execute as @a at @s run playsound minecraft:entity.wither.death master @s ~ ~ ~ 100')
+    
+    # Execute initial announcements
+    mcrcon_wrapper(batched_commands)
+    log_to_sql(f"Initial event announcements and sounds sent.")
+    
+    # 4. Play event start bells (must be done individually with delay)
     bells_command = 'execute as @a at @s run playsound minecraft:block.bell.use master @s ~ ~ ~ 100'
     for i in range(9):
-        bell_result = mcrcon_wrapper(bells_command)
+        mcrcon_wrapper(bells_command) # Executes bells_command as a single-item list
         log_to_sql(f"Bell sound {i+1}/9 played")
         time.sleep(0.25)
-
-    # Display description
-    result_description = mcrcon_wrapper(display_description_text)
-    log_to_sql(f"Event description displayed with result: {result_description}")
-
-    # Play wither death sound
-    wither_sound_cmd = 'execute as @a at @s run playsound minecraft:entity.wither.death master @s ~ ~ ~ 100'
-    wither_result = mcrcon_wrapper(wither_sound_cmd)
-    log_to_sql(f"Wither sound played with result: {wither_result}")
-
-    # Execute setup commands
+        
+    # 5. Execute setup commands
     try:
         setup_commands = event_data["commands"]["setup"]
-        for cmd in setup_commands:
-            cmd_result = mcrcon_wrapper(cmd)
-            log_to_sql(f"Setup command executed: {cmd} - Result: {cmd_result}")
+        log_to_sql(f"Executing {len(setup_commands)} setup commands in batch.")
+        mcrcon_wrapper(setup_commands)
     except KeyError:
         log_to_sql("No setup commands found in event JSON", "WARN")
     except Exception as e:
@@ -120,13 +132,14 @@ def start_event(event_data):
 
     log_to_sql("Event setup completed successfully")
     print("✅ Event Setup Completed")
-
+    
 def aggregate_scores(event_data):
     """Aggregate player scores for events that require it"""
-    player_list = get_players()
+    # get_players now returns only real, filtered players
+    player_list = get_players() 
     
     if not player_list:
-        log_to_sql("No tracked players found for score aggregation", "WARN")
+        log_to_sql("No real tracked players found for score aggregation", "WARN")
         print("No tracked players. Nothing to aggregate.")
         return
 
@@ -144,17 +157,20 @@ def aggregate_scores(event_data):
         log_to_sql("Event does not require score aggregation")
         return
 
+    # Batching for speedup 🚀
+    rcon_commands = []
+
     for player in player_list:
         # Reset aggregate score to zero
-        reset_cmd = f"scoreboard players set {player} {agg_obj} 0"
-        reset_result = mcrcon_wrapper(reset_cmd)
-        log_to_sql(f"Reset {agg_obj} to 0 for {player}: {reset_result}")
+        rcon_commands.append(f"scoreboard players set {player} {agg_obj} 0")
 
         # Aggregate each objective
         for objective in objectives:
-            agg_cmd = f"scoreboard players operation {player} {agg_obj} += {player} {objective}"
-            agg_result = mcrcon_wrapper(agg_cmd)
-            log_to_sql(f"Aggregated {objective} into {agg_obj} for {player}: {agg_result}")
+            # Operation command
+            rcon_commands.append(f"scoreboard players operation {player} {agg_obj} += {player} {objective}")
+
+    log_to_sql(f"Executing {len(rcon_commands)} batched RCON commands for score aggregation")
+    mcrcon_wrapper(rcon_commands)
 
     log_to_sql("Score aggregation completed")
     print("✅ Calculated Aggregate Scores")
@@ -232,7 +248,7 @@ def find_leaders(event_data, silent=False):
     return leaders, leading_score
 
 def display_scoreboard(event_data, unique_event_name=None):
-    """Display the event scoreboard for a specified duration"""
+    """Display the event scoreboard for a specified duration using RCON batching"""
     try:
         tracked_obj = event_data["aggregate_objective"]
         display_name = event_data["sidebar"]["displayName"]
@@ -244,30 +260,31 @@ def display_scoreboard(event_data, unique_event_name=None):
         return
 
     log_to_sql(f"Displaying scoreboard for {duration} seconds")
+    
+    setup_commands = []
+    
+    # 1. Set up scoreboard display
+    setup_commands.append(f'scoreboard objectives setdisplay sidebar {tracked_obj}')
 
-    # Set up scoreboard display
-    display_cmd = f'scoreboard objectives setdisplay sidebar {tracked_obj}'
-    display_result = mcrcon_wrapper(display_cmd)
-    log_to_sql(f"Scoreboard display set: {display_result}")
-
-    # Format scoreboard title
+    # 2. Format scoreboard title
     title_format = {
         "text": str(display_name),
         "color": str(color),
         "bold": bool(bold)
     }
-    
-    modify_cmd = f"scoreboard objectives modify {tracked_obj} displayname {json.dumps(title_format)}"
-    modify_result = mcrcon_wrapper(modify_cmd)
-    log_to_sql(f"Scoreboard title modified: {modify_result}")
+    setup_commands.append(f"scoreboard objectives modify {tracked_obj} displayname {json.dumps(title_format)}")
+
+    # Execute setup commands in batch
+    mcrcon_wrapper(setup_commands)
+    log_to_sql("Scoreboard display set and title modified.")
 
     # Display for specified duration
     time.sleep(duration)
 
-    # Clear scoreboard
+    # 3. Clear scoreboard (must be done after sleep)
     clear_cmd = "scoreboard objectives setdisplay sidebar"
-    clear_result = mcrcon_wrapper(clear_cmd)
-    log_to_sql(f"Scoreboard cleared: {clear_result}")
+    mcrcon_wrapper(clear_cmd)
+    log_to_sql("Scoreboard cleared.")
 
     # Update the scoreboard display time in database
     if unique_event_name:
@@ -277,19 +294,23 @@ def display_scoreboard(event_data, unique_event_name=None):
     print("✅ Scoreboard was displayed")
 
 def cleanup_objs(event_data):
-    """Clean up scoreboard objectives after event"""
+    """Clean up scoreboard objectives after event using RCON batching"""
     try:
         cleanup_objectives = event_data["commands"]["cleanup"]
     except KeyError:
         log_to_sql("No cleanup objectives specified", "WARN")
         return
 
-    log_to_sql(f"Cleaning up objectives: {cleanup_objectives}")
+    log_to_sql(f"Cleaning up {len(cleanup_objectives)} objectives in batch.")
 
+    cleanup_commands = []
     for objective in cleanup_objectives:
-        cleanup_cmd = f'scoreboard objectives remove {objective}'
-        cleanup_result = mcrcon_wrapper(cleanup_cmd)
-        log_to_sql(f"Cleaned up objective {objective}: {cleanup_result}")
+        cleanup_commands.append(f'scoreboard objectives remove {objective}')
+
+    # Execute all cleanup commands at once
+    cleanup_result = mcrcon_wrapper(cleanup_commands)
+    # The result contains all command outputs; internal logging in mcrcon_wrapper
+    # covers the individual command execution.
 
     log_to_sql("Event cleanup completed")
     print("✅ Event has been cleaned up!")
@@ -352,28 +373,23 @@ def save_winners_to_sql(event_data, leaders, final_score):
         log_to_sql(f"Error saving winners to database: {e}", "ERROR")
 
 def give_reward_item(winners, event_data):
-    """Give reward items to online winners"""
+    """Give reward items to online winners using limited RCON batching"""
     if not winners:
         log_to_sql("No winners to reward")
         return
 
-    # Get online players
+    # Get online players (SINGLE RCON CALL)
     online_cmd = "list"
     online_result = mcrcon_wrapper(online_cmd)
     
-    if not online_result:
-        log_to_sql("Could not get online players list", "ERROR")
-        return
-
-    log_to_sql(f"Online players query result: {online_result}")
-
-    # Parse online players
-    online_match = re.search(r"online:\s*(.+)$", online_result[0])
-    if online_match:
-        online_players = [p.strip() for p in online_match.group(1).split(",")]
-    else:
-        log_to_sql("Could not parse online players list", "WARN")
-        online_players = []
+    # Parse online players (Parser remains the same)
+    online_players = []
+    if online_result:
+        online_match = re.search(r"online:\s*(.+)$", online_result[0])
+        if online_match:
+            online_players = [p.strip() for p in online_match.group(1).split(",")]
+        else:
+            log_to_sql("Could not parse online players list", "WARN")
 
     online_winners = [player for player in winners if player in online_players]
     offline_winners = [player for player in winners if player not in online_players]
@@ -382,7 +398,7 @@ def give_reward_item(winners, event_data):
 
     for winner in online_winners:
         try:
-            # Winner notification sequence
+            # Winner notification sequence (Requires sequential execution with delay)
             notifications = [
                 f'tellraw {winner} "You have won the {event_data["name"]} event!"',
                 f'tellraw {winner} "You will be receiving your prize in..."',
@@ -392,22 +408,25 @@ def give_reward_item(winners, event_data):
             ]
             
             for notif in notifications:
-                mcrcon_wrapper(notif)
+                mcrcon_wrapper(notif) # Executes as a single-item list
                 time.sleep(1)
 
+            # Give reward item and send final notification (Batched)
+            reward_commands = []
+            
             # Give reward item
             reward_cmd = f'give {winner} {event_data["reward_cmd"]}'
-            reward_cmd = reward_cmd.replace("'", '"')
-            reward_result = mcrcon_wrapper(reward_cmd)
-            log_to_sql(f"Gave reward to {winner}: {reward_result}")
+            reward_commands.append(reward_cmd.replace("'", '"')) # Correct single/double quote handling
 
             # Item received notification
             item_msg = f"You have been given the legendary {event_data['reward_name']}!"
             item_json = {"text": item_msg, "color": "light_purple"}
             item_cmd = f'tellraw {winner} {json.dumps(item_json)}'
-            mcrcon_wrapper(item_cmd)
-
-            log_to_sql(f"Reward sequence completed for {winner}")
+            reward_commands.append(item_cmd)
+            
+            # Execute batched give/notification
+            mcrcon_wrapper(reward_commands)
+            log_to_sql(f"Gave reward and sent final notification to {winner}")
 
         except KeyError as e:
             log_to_sql(f"Missing reward configuration: {e}", "ERROR")

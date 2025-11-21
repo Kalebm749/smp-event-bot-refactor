@@ -21,6 +21,25 @@ def insert_task(event_id, task_name, scheduled_time, priority):
     """
     return db.db_query_with_params(query, (event_id, task_name, timestamp, priority))
 
+def delete_task(task_id):
+    """Delete a task by its ID"""
+    db = db_manager(DATABASE_PATH, SCHEMA_PATH)
+    query = """
+    DELETE FROM event_tasks WHERE id = ? AND completed = 0;
+    """
+    try:
+        db_conn = db.db_connect()
+        cursor = db_conn.cursor()
+        cursor.execute(query, (task_id,))
+        affected_rows = cursor.rowcount
+        db_conn.commit()
+        cursor.close()
+        db_conn.close()
+        return affected_rows > 0
+    except Exception as e:
+        log_message(f"Error deleting task {task_id}: {e}", "ERROR")
+        return False
+
 def get_next_pending_task_time():
     db = db_manager(DATABASE_PATH, SCHEMA_PATH)
     query = """

@@ -180,6 +180,40 @@ def api_tasks():
     tasks = sql_calendar.get_all_tasks()
     return jsonify(tasks)
 
+@app.route("/api/tasks/delete", methods=["POST"])
+@login_required
+def api_delete_task():
+    try:
+        task_id = request.json.get("task_id")
+        if not task_id:
+            return jsonify({"success": False, "error": "No task ID provided"})
+        
+        db = get_db()
+        
+        # Check if task exists and is not completed
+        check_query = "SELECT completed FROM event_tasks WHERE id = ?"
+        result = db.db_query_with_params(check_query, (task_id,))
+        
+        if not result:
+            return jsonify({"success": False, "error": "Task not found"})
+        
+        if result[0][0]:  # Task is completed
+            return jsonify({"success": False, "error": "Cannot delete completed tasks"})
+        
+        # Delete the task
+        delete_query = "DELETE FROM event_tasks WHERE id = ?"
+        db.db_query_with_params(delete_query, (task_id,))
+        
+        sql_calendar.log_message(f"Admin deleted task {task_id} via web interface", "ADMIN")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Task {task_id} deleted successfully"
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -599,11 +633,22 @@ def options():
 @login_required
 def api_get_settings():
     try:
+        # Get scoreboard interval from database
+        db = get_db()
+        # NOTE: This query looks for the interval in the 'events' table, 
+        # which might not be the most reliable source if no events exist.
+        # It should probably check a dedicated 'settings' table or fallback to a constant.
+        query = "SELECT scoreboard_interval FROM events ORDER BY id DESC LIMIT 1"
+        result = db.db_query(query)
+        default_interval = result[0][0] if result else 600
+        
         settings = {
             "rcon_host": os.getenv("RCON_HOST", ""),
             "rcon_port": os.getenv("RCON_PORT", "25575"),
             "discord_token": os.getenv("DISCORD_TOKEN", ""),
-            "event_channel_id": os.getenv("EVENT_CHANNEL_ID", "")
+            "event_channel_id": os.getenv("EVENT_CHANNEL_ID", ""),
+            # FIX: Ensure we are using SCOREBOARD_INTERVAL here
+            "scoreboard_interval": os.getenv("SCOREBOARD_INTERVAL", str(default_interval))
         }
         return jsonify(settings)
     except Exception as e:
@@ -628,7 +673,9 @@ def api_update_settings():
             'RCON_HOST': data.get('rcon_host'),
             'RCON_PORT': data.get('rcon_port'),
             'DISCORD_TOKEN': data.get('discord_token'),
-            'EVENT_CHANNEL_ID': data.get('event_channel_id')
+            'EVENT_CHANNEL_ID': data.get('event_channel_id'),
+            # FIX: Change the environment variable name from SCOREBOARD_INTERVAL_SECONDS to SCOREBOARD_INTERVAL
+            'SCOREBOARD_INTERVAL': data.get('scoreboard_interval') 
         }
         
         found_settings = set()
@@ -805,9 +852,12 @@ def create_event():
 
         unique_event_name = f"{name.replace(' ','-')}-{start_dt.strftime('%m-%d-%Y-%H%M')}"
 
+        # Get scoreboard interval from settings or use default
+        scoreboard_interval = int(os.getenv("SCOREBOARD_INTERVAL", "600"))
+
         try:
             event_id = schedule_events.create_event_with_tasks(
-                unique_event_name, name, event_json, description, start_utc, end_utc
+                unique_event_name, name, event_json, description, start_utc, end_utc, scoreboard_interval
             )
             
             if event_id:

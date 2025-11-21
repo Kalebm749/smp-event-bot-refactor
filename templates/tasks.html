@@ -26,6 +26,28 @@
         .stat { text-align: center; }
         .stat-value { font-size: 24px; font-weight: bold; color: #e0e0e0; }
         .stat-label { font-size: 12px; color: #888; text-transform: uppercase; }
+        .delete-task-btn { 
+            background-color: #f44336; 
+            color: white; 
+            border: none; 
+            padding: 6px 12px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 12px;
+            transition: background-color 0.3s;
+            display: inline-block;
+            text-align: center;
+            min-width: 60px;
+        }
+        .delete-task-btn:hover:not(:disabled) { 
+            background-color: #d32f2f; 
+            transform: scale(1.05);
+        }
+        .delete-task-btn:disabled { 
+            background-color: #666; 
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body>
@@ -54,10 +76,10 @@
         </div>
 
         <div class="filter-controls">
-            <button class="filter-btn active" onclick="filterTasks('all')">All Tasks</button>
-            <button class="filter-btn" onclick="filterTasks('pending')">Pending Only</button>
-            <button class="filter-btn" onclick="filterTasks('completed')">Completed Only</button>
-            <button class="filter-btn" onclick="filterTasks('overdue')">Overdue</button>
+            <button class="filter-btn active" onclick="filterTasks('all', event)">All Tasks</button>
+            <button class="filter-btn" onclick="filterTasks('pending', event)">Pending Only</button>
+            <button class="filter-btn" onclick="filterTasks('completed', event)">Completed Only</button>
+            <button class="filter-btn" onclick="filterTasks('overdue', event)">Overdue</button>
             <button class="refresh-btn" onclick="refreshTasks()" style="float: right;">Refresh</button>
         </div>
 
@@ -71,6 +93,8 @@
                     <th>Priority</th>
                     <th>Status</th>
                     <th>Execution Time</th>
+                    <th>Completed At</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="tasks-tbody">
@@ -98,6 +122,33 @@
 
         function formatTaskName(taskName) {
             return taskName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        async function deleteTask(taskId, eventName) {
+            if (!confirm(`Are you sure you want to delete this task?\n\nTask ID: ${taskId}\nEvent: ${eventName}\n\nThis action cannot be undone!`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/tasks/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ task_id: taskId })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Task deleted successfully');
+                    refreshTasks();
+                } else {
+                    alert('Failed to delete task: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error deleting task: ' + error.message);
+            }
         }
 
         function refreshTasks() {
@@ -134,12 +185,14 @@
             document.getElementById('stat-overdue').textContent = stats.overdue;
         }
 
-        function filterTasks(filter) {
+        function filterTasks(filter, event) {
             currentFilter = filter;
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
             displayTasks();
         }
 
@@ -174,6 +227,20 @@
                     executionTime = task.execution_length_ms + ' ms';
                 }
 
+                let completedAt = '-';
+                if (task.completed_time) {
+                    completedAt = formatLocalTime(task.completed_time);
+                }
+
+                // Only allow deletion of pending tasks
+                let deleteButton = '';
+                if (status === 'pending' || status === 'overdue') {
+                    const escapedEventName = (task.unique_event_name || 'Unknown').replace(/'/g, "\\'");
+                    deleteButton = `<button class="delete-task-btn" onclick="deleteTask(${task.id}, '${escapedEventName}')" title="Delete Task">Delete</button>`;
+                } else { // status === 'completed'
+                    deleteButton = `<button class="delete-task-btn" disabled title="Cannot delete completed tasks">Delete</button>`;
+                }
+
                 tr.innerHTML = `
                     <td>${task.id}</td>
                     <td>${formatLocalTime(task.scheduled_time)}</td>
@@ -182,6 +249,8 @@
                     <td class="priority-${task.priority}">${task.priority}</td>
                     <td>${statusBadge}</td>
                     <td>${executionTime}</td>
+                    <td>${completedAt}</td>
+                    <td>${deleteButton}</td>
                 `;
 
                 tbody.appendChild(tr);

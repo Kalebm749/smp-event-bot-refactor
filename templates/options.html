@@ -37,6 +37,26 @@
             <div id="connection-status" style="margin-top: 15px;"></div>
         </div>
 
+        <!-- Event Settings Panel -->
+        <div class="panel">
+            <h2>Event Settings</h2>
+            <p style="color: #888; margin-bottom: 20px;">Configure default event behavior</p>
+
+            <div class="form-group">
+                <label for="scoreboard-interval">Scoreboard Display Interval (seconds)</label>
+                <input type="number" id="scoreboard-interval" placeholder="600" min="60" max="3600">
+                <small style="color: #888; display: block; margin-top: 5px;">
+                    How often to display the scoreboard during events (60-3600 seconds, default: 600)
+                </small>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <button class="btn" onclick="saveSettings()">Save Event Settings</button>
+            </div>
+
+            <div id="event-status" style="margin-top: 15px;"></div>
+        </div>
+
         <!-- Discord Settings Panel -->
         <div class="panel">
             <h2>Discord Integration Settings</h2>

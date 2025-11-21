@@ -20,6 +20,7 @@ async function loadSettings() {
         document.getElementById('rcon-port').value = settings.rcon_port || '25575';
         document.getElementById('discord-token').value = settings.discord_token || '';
         document.getElementById('event-channel-id').value = settings.event_channel_id || '';
+        document.getElementById('scoreboard-interval').value = settings.scoreboard_interval || '600';
         
     } catch (error) {
         showStatus('connection-status', 'error', 'Error loading settings: ' + error.message);
@@ -73,11 +74,21 @@ async function testConnection() {
 }
 
 async function saveSettings() {
+    const scoreboardInterval = document.getElementById('scoreboard-interval').value;
+    
+    // Validate scoreboard interval
+    if (scoreboardInterval && (parseInt(scoreboardInterval) < 60 || parseInt(scoreboardInterval) > 3600)) {
+        showStatus('event-status', 'error', 
+            '❌ Scoreboard interval must be between 60 and 3600 seconds');
+        return;
+    }
+    
     const settings = {
         rcon_host: document.getElementById('rcon-host').value,
         rcon_port: document.getElementById('rcon-port').value,
         discord_token: document.getElementById('discord-token').value,
-        event_channel_id: document.getElementById('event-channel-id').value
+        event_channel_id: document.getElementById('event-channel-id').value,
+        scoreboard_interval: scoreboardInterval || '600'
     };
     
     const saveBtn = document.getElementById('save-btn');
@@ -102,6 +113,8 @@ async function saveSettings() {
                 '✅ Settings saved successfully! ' + data.message);
             showStatus('discord-status', 'success', 
                 '✅ Discord settings saved!');
+            showStatus('event-status', 'success', 
+                '✅ Event settings saved!');
         } else {
             showStatus('connection-status', 'error', 
                 '❌ Failed to save settings: ' + data.error);
