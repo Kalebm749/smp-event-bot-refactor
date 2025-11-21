@@ -76,19 +76,20 @@ def execute_task(task):
     sql_calendar.log_message(f"Executing task: {task_name} for event {event_id} ({unique_name})")
     
     try:
-        if task_name == 'discord_twenty_four_hr_notif':
+        # FIXED: Updated task names to match what schedule_events.py creates
+        if task_name == 'discord_twentyfour_notify':
             send_discord_notification("twenty_four", unique_name)
             sql_calendar.send_24h_notification(event_id)
             
-        elif task_name == 'discord_thirty_m_notif':
+        elif task_name == 'discord_thirty_notify':
             send_discord_notification("thirty", unique_name)
             sql_calendar.send_30min_notification(event_id)
             
-        elif task_name == 'discord_now_notif':
+        elif task_name == 'discord_now_notify':
             send_discord_notification("now", unique_name)
             sql_calendar.send_start_notification(event_id)
             
-        elif task_name == 'discord_results_notify':
+        elif task_name == 'discord_over_notify':
             winners, score = get_event_results(unique_name)
             send_discord_notification("over", unique_name, winners=winners, score=score)
             sql_calendar.send_end_notification(event_id)
@@ -102,7 +103,8 @@ def execute_task(task):
             time.sleep(3)
             sql_calendar.end_event_by_id(event_id)
             
-        elif task_name == 'server_display_scoreboard':
+        # FIXED: Also fixing the scoreboard task name to match schedule_events.py  
+        elif task_name == 'server_display_scoreboard' or task_name == 'server_scoreboard_display':
             call_rcon_framework("display", event_json, unique_name)
             sql_calendar.update_scoreboard_display_time(event_id)
             
