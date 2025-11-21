@@ -35,13 +35,13 @@ def schedule_tasks_for_event(event_id, start_time, end_time, scoreboard_interval
     # 24-Hour Notification (Action 'twentyfour') - Low Priority (100)
     notify_24h_time = start_time - timedelta(hours=24)
     if notify_24h_time > now:
-        sql_calendar.insert_task(event_id, 'discord_twentyfour_notify', notify_24h_time, 100)
+        sql_calendar.insert_task(event_id, 'discord_twentyfour_notify', notify_24h_time, 2)
         tasks_scheduled.append('discord_twentyfour_notify')
 
     # 30-Minute Notification (Action 'thirty') - Medium Priority (50)
     notify_30min_time = start_time - timedelta(minutes=30)
     if notify_30min_time > now:
-        sql_calendar.insert_task(event_id, 'discord_thirty_notify', notify_30min_time, 50)
+        sql_calendar.insert_task(event_id, 'discord_thirty_notify', notify_30min_time, 2)
         tasks_scheduled.append('discord_thirty_notify')
 
     # Start Notification (Action 'now') - High Priority (4)
