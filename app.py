@@ -174,6 +174,11 @@ def index():
 def tasks():
     return render_template("tasks.html")
 
+@app.route("/winners")
+@login_required
+def winners():
+    return render_template("winners.html")
+
 @app.route("/api/tasks")
 @login_required
 def api_tasks():
@@ -586,6 +591,54 @@ def api_admin_events_list():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/winners")
+@login_required
+def api_winners():
+    try:
+        db = get_db()
+        query = """
+        SELECT w.id, w.event_id, e.unique_event_name, e.name as event_name,
+               w.player_name, w.final_score, w.was_online, w.rewarded_at, e.event_json
+        FROM event_winners w
+        JOIN events e ON w.event_id = e.id
+        ORDER BY w.rewarded_at DESC
+        """
+        results = db.db_query(query)
+        
+        winners = []
+        for row in results:
+            # Parse event JSON to get reward command
+            reward_cmd = None
+            event_json_filename = row[8]  # e.event_json
+            if event_json_filename:
+                try:
+                    events_json_path = os.path.join(".", "events", "events_json")
+                    json_path = os.path.join(events_json_path, event_json_filename)
+                    if os.path.exists(json_path):
+                        with open(json_path, 'r') as f:
+                            event_data = json.load(f)
+                            reward_cmd = event_data.get('reward_cmd')
+                except Exception as e:
+                    sql_calendar.log_message(f"Error loading event JSON {event_json_filename}: {e}", "WARN")
+            
+            winners.append({
+                "id": row[0],
+                "event_id": row[1],
+                "unique_event_name": row[2],
+                "event_name": row[3],
+                "player_name": row[4],
+                "final_score": row[5],
+                "was_online": bool(row[6]),
+                "rewarded_at": row[7],
+                "reward_cmd": reward_cmd
+            })
+        
+        return jsonify(winners)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 @app.route("/api/database/admin-json-files")
 @login_required

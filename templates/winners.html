@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Event Winners - SMP Event Orchestrator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        .winners-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background-color: #1c2a42;
+            border: 1px solid #3a4a6f;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-card.grass { border-left: 4px solid #7cbd56; }
+        .stat-card.diamond { border-left: 4px solid #4dd0e1; }
+        .stat-card.gold { border-left: 4px solid #ffd54f; }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #e0e0e0;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            background-color: #3a4a6f;
+            color: #e0e0e0;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .filter-btn:hover {
+            background-color: #50628b;
+        }
+        .filter-btn.active {
+            background-color: #4dd0e1;
+            color: #000;
+        }
+        .winner-row.rewarded { background-color: rgba(124, 189, 86, 0.15); }
+        .winner-row.not-rewarded { background-color: rgba(239, 83, 80, 0.15); }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-badge.online {
+            background-color: rgba(124, 189, 86, 0.3);
+            color: #7cbd56;
+        }
+        .status-badge.offline {
+            background-color: rgba(239, 83, 80, 0.3);
+            color: #ef5350;
+        }
+        .event-name {
+            font-weight: 600;
+            color: #4dd0e1;
+        }
+        .player-name {
+            font-weight: 600;
+            color: #ffd54f;
+        }
+        .score {
+            font-weight: bold;
+            color: #e0e0e0;
+        }
+        .reward-command {
+            font-family: 'Courier New', monospace;
+            background-color: #0f1a2b;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #4dd0e1;
+            border: 1px solid #3a4a6f;
+            max-width: 400px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .reward-command::-webkit-scrollbar {
+            height: 6px;
+        }
+        .reward-command::-webkit-scrollbar-track {
+            background: #1c2a42;
+        }
+        .reward-command::-webkit-scrollbar-thumb {
+            background: #3a4a6f;
+            border-radius: 3px;
+        }
+        .copy-btn {
+            background-color: #3a4a6f;
+            color: #e0e0e0;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-left: 5px;
+            transition: background-color 0.2s;
+        }
+        .copy-btn:hover {
+            background-color: #50628b;
+        }
+        .copy-btn.copied {
+            background-color: #4caf50;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container">
+        <h1>🏆 Event Winners</h1>
+
+        <!-- Statistics Cards -->
+        <div class="winners-stats">
+            <div class="stat-card grass">
+                <div class="stat-number" id="stat-total-winners">-</div>
+                <div class="stat-label">Total Winners</div>
+            </div>
+            <div class="stat-card diamond">
+                <div class="stat-number" id="stat-rewarded">-</div>
+                <div class="stat-label">Rewarded Online</div>
+            </div>
+            <div class="stat-card gold">
+                <div class="stat-number" id="stat-not-rewarded">-</div>
+                <div class="stat-label">Missed (Offline)</div>
+            </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="panel">
+            <h2>Filter Winners</h2>
+            <div class="filter-controls">
+                <button class="filter-btn active" onclick="filterWinners('all')">All Winners</button>
+                <button class="filter-btn" onclick="filterWinners('online')">Rewarded (Online)</button>
+                <button class="filter-btn" onclick="filterWinners('offline')">Missed (Offline)</button>
+                <button class="refresh-btn" onclick="refreshWinners()" style="margin-left: auto;">Refresh</button>
+            </div>
+        </div>
+
+        <!-- Winners Table -->
+        <div class="panel">
+            <h2>Winner History</h2>
+            <div class="table-responsive">
+                <table id="winners-table">
+                    <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th>Player</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <th>Reward Command</th>
+                            <th>Rewarded At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="winners-tbody">
+                        <tr>
+                            <td colspan="6" style="text-align: center;">Loading winners...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/winners.js') }}"></script>
+</body>
+</html>
