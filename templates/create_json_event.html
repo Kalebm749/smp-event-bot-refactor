@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sign In</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+  {% include 'navbar.html' %}
+
+  <div class="container">
+    <h1>Create Event JSON</h1>
+    <form id="event-form" method="POST">
+      <!-- Event Info -->
+      <fieldset>
+        <legend>Event Info</legend>
+
+        <label>Event Name
+          <input type="text" name="name" required>
+        </label>
+
+        <label>Event Description
+          <textarea name="description" rows="4" required></textarea>
+        </label>
+
+        <p class="hint">If your event objective will be comprised of multiple objectives tick "True" here.</p>
+        <label>Uses Multiple Objectives?</label>
+        <div class="radio-inline">
+          <input type="radio" name="is_aggregate" value="true" onchange="toggleAggregateFields();forceAggregate()"> True
+        </div>
+        <div class="radio-inline">
+          <input type="radio" name="is_aggregate" value="false" onchange="toggleAggregateFields()" checked> False
+        </div>
+
+        <p class="hint">This will display as "ShibuiKaleb is in the lead with 24 < Score Text >."</p>
+        <label>Score Text
+          <input type="text" name="score_text">
+        </label>
+
+        <p class="hint">Use CamelCase, no spaces and not special characters. For example: LogsCollected</p>
+        <label>Overall Objective Name
+          <input type="text" name="aggregate_objective" pattern="[a-zA-Z]+" required>
+        </label>
+      </fieldset>
+
+      <!-- Commands -->
+      <fieldset>
+        <legend>Commands</legend>
+        <h3>Setup Commands</h3>
+        <div id="setup-commands-container"></div>
+        <button type="button" onclick="addSetupCommand()">Add Setup Command</button>
+
+        <div id="aggregate-setup-extra" style="display:none;">
+        </div> 
+      </fieldset>
+
+      <!-- Sidebar -->
+      <fieldset>
+        <legend>Sidebar</legend>
+        <label>Display Name
+          <input type="text" name="sidebar_display">
+        </label>
+        <label>Color
+          <select name="sidebar_color">
+            <option>black</option><option>dark_blue</option><option>dark_green</option>
+            <option>dark_aqua</option><option>dark_red</option><option>dark_purple</option>
+            <option>gold</option><option>gray</option><option>dark_gray</option>
+            <option>blue</option><option>green</option><option>aqua</option>
+            <option>red</option><option>light_purple</option><option>yellow</option><option>white</option>
+          </select>
+        </label>
+        <label>Bold?
+          <div class="radio-inline"><input type="radio" name="sidebar_bold" value="true"> True</div>
+          <div class="radio-inline"><input type="radio" name="sidebar_bold" value="false" checked> False</div>
+        </label>
+        <label>Duration (seconds)
+          <input type="text" name="sidebar_duration" value="15">
+        </label>
+      </fieldset>
+
+      <!-- Rewards -->
+      <fieldset>
+        <legend>Reward</legend>
+        <label>Reward Command
+          <input type="text" name="reward_cmd">
+        </label>
+        <label>Reward Name
+          <input type="text" name="reward_name">
+        </label>
+      </fieldset>
+
+      <button type="submit">Save Event JSON</button>
+    </form>
+  </div>
+
+  <!-- External JavaScript -->
+  <script src="{{ url_for('static', filename='js/create_json_event.js') }}"></script>
+</body>
+</html>

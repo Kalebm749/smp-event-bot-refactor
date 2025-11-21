@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sign In</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container">
+        <div class="form-container">
+            <div class="panel">
+                <h2>Schedule New Event</h2>
+                
+                <div id="error-container"></div>
+
+                <form id="create-event-form" method="POST" action="{{ url_for('create_event') }}">
+                    
+                    <div class="form-grid">
+                        <!-- Event Selection -->
+                        <div class="form-group">
+                            <label for="event_json">Event Type</label>
+                            <select id="event_json" name="event_json" required>
+                                <option value="" disabled selected>Choose an event type</option>
+                                {% for file in event_files %}
+                                <option value="{{ file }}">{{ file.replace('.json', '') }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Timezone Selection -->
+                        <div class="form-group">
+                            <label for="timezone">Timezone</label>
+                            <select id="timezone" name="timezone" required>
+                                <option value="" disabled selected>Select timezone</option>
+                                <option value="US/Eastern">US/Eastern</option>
+                                <option value="US/Central">US/Central</option>
+                                <option value="US/Mountain">US/Mountain</option>
+                                <option value="US/Pacific">US/Pacific</option>
+                                <option value="Europe/London">Europe/London</option>
+                                <option value="Europe/Berlin">Europe/Berlin</option>
+                                <option value="Europe/Paris">Europe/Paris</option>
+                                <option value="Europe/Madrid">Europe/Madrid</option>
+                                <option value="Europe/Rome">Europe/Rome</option>
+                                <option value="Europe/Amsterdam">Europe/Amsterdam</option>
+                                <option value="Europe/Stockholm">Europe/Stockholm</option>
+                                <option value="Europe/Zurich">Europe/Zurich</option>
+                            </select>
+                        </div>
+
+                        <!-- Event Name -->
+                        <div class="form-group">
+                            <label for="name">Event Name</label>
+                            <input type="text" id="name" name="name" placeholder="Auto-filled from event type" readonly required>
+                        </div>
+
+                        <!-- Start Date/Time -->
+                        <div class="form-group">
+                            <label for="start_datetime">Start Date & Time</label>
+                            <input type="datetime-local" id="start_datetime" name="start_datetime" required>
+                            <div class="quick-times">
+                                <button type="button" class="quick-time-btn" onclick="setQuickTime('start', 'now')">Now</button>
+                                <button type="button" class="quick-time-btn" onclick="setQuickTime('start', '1hour')">+1 Hour</button>
+                                <button type="button" class="quick-time-btn" onclick="setQuickTime('start', 'tomorrow')">Tomorrow 9AM</button>
+                                <button type="button" class="quick-time-btn" onclick="setQuickTime('start', 'weekend')">Next Weekend</button>
+                            </div>
+                            <div class="datetime-preview" id="start-preview"></div>
+                        </div>
+
+                        <!-- End Date/Time -->
+                        <div class="form-group">
+                            <label for="end_datetime">End Date & Time</label>
+                            <input type="datetime-local" id="end_datetime" name="end_datetime" required>
+                            <div class="duration-presets">
+                                <button type="button" class="duration-btn" onclick="setDuration(1)">+1 Hour</button>
+                                <button type="button" class="duration-btn" onclick="setDuration(2)">+2 Hours</button>
+                                <button type="button" class="duration-btn" onclick="setDuration(6)">+6 Hours</button>
+                                <button type="button" class="duration-btn" onclick="setDuration(24)">+1 Day</button>
+                                <button type="button" class="duration-btn" onclick="setDuration(72)">+3 Days</button>
+                            </div>
+                            <div class="datetime-preview" id="end-preview"></div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="form-group full-width">
+                            <label for="description">Event Description</label>
+                            <textarea id="description" name="description" rows="4" placeholder="Describe what players should expect from this event..." required></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Event Preview -->
+                    <div class="event-preview" id="event-preview" style="display: none;">
+                        <h3>📅 Event Preview</h3>
+                        <div class="preview-field">
+                            <span class="preview-label">Event Name:</span>
+                            <span class="preview-value" id="preview-name">-</span>
+                        </div>
+                        <div class="preview-field">
+                            <span class="preview-label">Event Type:</span>
+                            <span class="preview-value" id="preview-type">-</span>
+                        </div>
+                        <div class="preview-field">
+                            <span class="preview-label">Start Time:</span>
+                            <span class="preview-value" id="preview-start">-</span>
+                        </div>
+                        <div class="preview-field">
+                            <span class="preview-label">End Time:</span>
+                            <span class="preview-value" id="preview-end">-</span>
+                        </div>
+                        <div class="preview-field">
+                            <span class="preview-label">Duration:</span>
+                            <span class="preview-value" id="preview-duration">-</span>
+                        </div>
+                        <div class="preview-field">
+                            <span class="preview-label">Timezone:</span>
+                            <span class="preview-value" id="preview-timezone">-</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submit-btn" disabled>Schedule Event</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- External JavaScript -->
+    <script src="{{ url_for('static', filename='js/create_event.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Scheduled Tasks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        #tasks-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        #tasks-table th { background-color: #2e3e5d; color: #e0e0e0; padding: 10px; text-align: left; }
+        #tasks-table td { padding: 10px; border-bottom: 1px solid #3a4a6f; }
+        #tasks-table tr:hover { background-color: #2e3e5d; }
+        .task-pending { background-color: rgba(255, 193, 7, 0.15); }
+        .task-completed { background-color: rgba(76, 175, 80, 0.15); }
+        .task-overdue { background-color: rgba(244, 67, 54, 0.15); }
+        .priority-5 { font-weight: bold; color: #ff9800; }
+        .priority-4 { color: #ffc107; }
+        .priority-3 { color: #e0e0e0; }
+        .priority-2 { color: #cfd8dc; }
+        .priority-1 { color: #aaa; }
+        .filter-controls { margin-bottom: 20px; }
+        .filter-btn { background-color: #3a4a6f; color: #e0e0e0; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        .filter-btn:hover { background-color: #50628b; }
+        .filter-btn.active { background-color: #4caf50; }
+        .stats-panel { display: flex; justify-content: space-around; margin-bottom: 20px; padding: 20px; background-color: #1c2a42; border-radius: 6px; }
+        .stat { text-align: center; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #e0e0e0; }
+        .stat-label { font-size: 12px; color: #888; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container">
+        <h1>Scheduled Tasks</h1>
+        
+        <div class="stats-panel">
+            <div class="stat">
+                <div class="stat-value" id="stat-total">-</div>
+                <div class="stat-label">Total Tasks</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="stat-pending">-</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="stat-completed">-</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="stat-overdue">-</div>
+                <div class="stat-label">Overdue</div>
+            </div>
+        </div>
+
+        <div class="filter-controls">
+            <button class="filter-btn active" onclick="filterTasks('all')">All Tasks</button>
+            <button class="filter-btn" onclick="filterTasks('pending')">Pending Only</button>
+            <button class="filter-btn" onclick="filterTasks('completed')">Completed Only</button>
+            <button class="filter-btn" onclick="filterTasks('overdue')">Overdue</button>
+            <button class="refresh-btn" onclick="refreshTasks()" style="float: right;">Refresh</button>
+        </div>
+
+        <table id="tasks-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Scheduled Time</th>
+                    <th>Event Name</th>
+                    <th>Task Type</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Execution Time</th>
+                </tr>
+            </thead>
+            <tbody id="tasks-tbody">
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let allTasks = [];
+        let currentFilter = 'all';
+
+        function formatLocalTime(utcTimeStr) {
+            if (!utcTimeStr) return '-';
+            const date = new Date(utcTimeStr.replace('Z', '+00:00'));
+            return date.toLocaleString();
+        }
+
+        function getTaskStatus(task) {
+            if (task.completed) return 'completed';
+            const now = new Date();
+            const scheduledTime = new Date(task.scheduled_time.replace('Z', '+00:00'));
+            if (scheduledTime < now) return 'overdue';
+            return 'pending';
+        }
+
+        function formatTaskName(taskName) {
+            return taskName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function refreshTasks() {
+            fetch('/api/tasks')
+                .then(response => response.json())
+                .then(tasks => {
+                    allTasks = tasks;
+                    updateStats();
+                    displayTasks();
+                })
+                .catch(error => {
+                    console.error('Error loading tasks:', error);
+                });
+        }
+
+        function updateStats() {
+            const stats = {
+                total: allTasks.length,
+                pending: 0,
+                completed: 0,
+                overdue: 0
+            };
+
+            allTasks.forEach(task => {
+                const status = getTaskStatus(task);
+                if (status === 'completed') stats.completed++;
+                else if (status === 'overdue') stats.overdue++;
+                else stats.pending++;
+            });
+
+            document.getElementById('stat-total').textContent = stats.total;
+            document.getElementById('stat-pending').textContent = stats.pending;
+            document.getElementById('stat-completed').textContent = stats.completed;
+            document.getElementById('stat-overdue').textContent = stats.overdue;
+        }
+
+        function filterTasks(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            displayTasks();
+        }
+
+        function displayTasks() {
+            const tbody = document.getElementById('tasks-tbody');
+            tbody.innerHTML = '';
+
+            let filteredTasks = allTasks;
+            if (currentFilter !== 'all') {
+                filteredTasks = allTasks.filter(task => {
+                    const status = getTaskStatus(task);
+                    return status === currentFilter;
+                });
+            }
+
+            filteredTasks.forEach(task => {
+                const status = getTaskStatus(task);
+                const tr = document.createElement('tr');
+                tr.className = 'task-' + status;
+
+                let statusBadge = '';
+                if (status === 'completed') {
+                    statusBadge = '<span style="color: #4caf50;">✅ Completed</span>';
+                } else if (status === 'overdue') {
+                    statusBadge = '<span style="color: #f44336;">⏰ Overdue</span>';
+                } else {
+                    statusBadge = '<span style="color: #ffc107;">⏳ Pending</span>';
+                }
+
+                let executionTime = '-';
+                if (task.execution_length_ms) {
+                    executionTime = task.execution_length_ms + ' ms';
+                }
+
+                tr.innerHTML = `
+                    <td>${task.id}</td>
+                    <td>${formatLocalTime(task.scheduled_time)}</td>
+                    <td>${task.unique_event_name || '-'}</td>
+                    <td>${formatTaskName(task.task_name)}</td>
+                    <td class="priority-${task.priority}">${task.priority}</td>
+                    <td>${statusBadge}</td>
+                    <td>${executionTime}</td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshTasks();
+            setInterval(refreshTasks, 30000);
+        });
+    </script>
+</body>
+</html>

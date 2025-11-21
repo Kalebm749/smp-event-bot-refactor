@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sign In</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container">
+        <!-- Database Info Panel -->
+        <div class="panel">
+            <h2>Database Information</h2>
+            <div id="db-info">
+                <div class="loading">Loading database information...</div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tab-nav">
+            <div class="tab-button active" onclick="switchTab('events')">Events</div>
+            <div class="tab-button" onclick="switchTab('notifications')">Notifications</div>
+            <div class="tab-button" onclick="switchTab('logs')">Logs</div>
+            <div class="tab-button" onclick="switchTab('winners')">Winners</div>
+            <div class="tab-button" onclick="switchTab('query')">Custom Query</div>
+            <div class="tab-button" onclick="switchTab('admin')" style="background-color: #8b3a3a;">🔒 Admin</div>
+        </div>
+
+        <!-- Tab Contents -->
+        <div id="events-tab" class="tab-content active">
+            <div class="panel">
+                <div class="table-header">
+                    <h2>Events Table</h2>
+                    <button class="refresh-btn" onclick="loadTable('events')">Refresh</button>
+                </div>
+                <div id="events-table">
+                    <div class="loading">Loading events...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="notifications-tab" class="tab-content">
+            <div class="panel">
+                <div class="table-header">
+                    <h2>Event Notifications Table</h2>
+                    <button class="refresh-btn" onclick="loadTable('event_notifications')">Refresh</button>
+                </div>
+                <div id="notifications-table">
+                    <div class="loading">Loading notifications...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="logs-tab" class="tab-content">
+            <div class="panel">
+                <div class="table-header">
+                    <h2>Logs Table</h2>
+                    <div class="controls">
+                        <select id="logs-limit">
+                            <option value="50">50 rows</option>
+                            <option value="100">100 rows</option>
+                            <option value="500">500 rows</option>
+                        </select>
+                        <button class="refresh-btn" onclick="loadTable('logs')">Refresh</button>
+                    </div>
+                </div>
+                <div id="logs-table">
+                    <div class="loading">Loading logs...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="winners-tab" class="tab-content">
+            <div class="panel">
+                <div class="table-header">
+                    <h2>Event Winners Table</h2>
+                    <button class="refresh-btn" onclick="loadTable('event_winners')">Refresh</button>
+                </div>
+                <div id="winners-table">
+                    <div class="loading">Loading winners...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="query-tab" class="tab-content">
+            <div class="panel">
+                <h2>Custom SQL Query</h2>
+                <p style="color: #888; margin-bottom: 15px;">Execute custom SELECT queries (other query types are blocked for safety)</p>
+                
+                <div class="query-controls">
+                    <textarea id="query-input" rows="4" placeholder="SELECT * FROM events WHERE..." style="width: 100%; box-sizing: border-box;"></textarea>
+                </div>
+                
+                <div class="controls">
+                    <button class="refresh-btn" onclick="executeQuery()">Execute Query</button>
+                    <button class="refresh-btn" onclick="clearQuery()">Clear</button>
+                </div>
+                
+                <div class="example-queries">
+                    <h4>Example Queries:</h4>
+                    <div id="example-buttons"></div>
+                </div>
+                
+                <div id="query-results"></div>
+            </div>
+        </div>
+
+        <div id="admin-tab" class="tab-content">
+            <div class="panel">
+                <h2 style="color: #f44336;">🔒 Database Administration</h2>
+                <p style="color: #888; margin-bottom: 20px;">⚠️ Warning: These actions are permanent and cannot be undone!</p>
+                
+                <!-- Password Protection -->
+                <div id="admin-password-section">
+                    <div style="max-width: 400px; margin-bottom: 30px;">
+                        <label for="admin-password" style="display: block; margin-bottom: 10px; font-weight: bold;">Master Password:</label>
+                        <input type="password" id="admin-password" placeholder="Enter DATABASE_MASTER password" style="width: 100%; padding: 10px; margin-bottom: 10px; background-color: #1c2a42; color: #e0e0e0; border: 1px solid #3a4a6f; border-radius: 4px;">
+                        <button onclick="unlockAdmin()" style="background-color: #f44336; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Unlock Admin Functions</button>
+                    </div>
+                </div>
+
+                <!-- Admin Functions (hidden until unlocked) -->
+                <div id="admin-functions" style="display: none;">
+                    
+                    <!-- Clear Logs Section -->
+                    <div style="background-color: #2f1e1e; border: 1px solid #8b3a3a; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                        <h3 style="color: #f44336; margin-top: 0;">Clear Application Logs</h3>
+                        <p style="color: #ccc;">Remove all log entries from the database. This will not affect event data.</p>
+                        <div style="margin-top: 15px;">
+                            <button onclick="clearLogs()" style="background-color: #ff9800; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Clear All Logs</button>
+                            <span id="logs-status" style="color: #888;"></span>
+                        </div>
+                    </div>
+
+                    <!-- Delete Events Section -->
+                    <div style="background-color: #2f1e1e; border: 1px solid #8b3a3a; border-radius: 6px; padding: 20px; margin-bottom: 20px;">
+                        <h3 style="color: #f44336; margin-top: 0;">Delete Events</h3>
+                        <p style="color: #ccc;">Completely remove events and all related data (notifications, winners, etc.)</p>
+                        
+                        <!-- Event Selection -->
+                        <div style="margin-bottom: 15px;">
+                            <label for="event-to-delete" style="display: block; margin-bottom: 5px; font-weight: bold;">Select Event to Delete:</label>
+                            <select id="event-to-delete" style="width: 100%; max-width: 500px; padding: 8px; background-color: #1c2a42; color: #e0e0e0; border: 1px solid #3a4a6f; border-radius: 4px;">
+                                <option value="">Loading events...</option>
+                            </select>
+                            <button onclick="refreshEventsList()" style="background-color: #3a4a6f; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 10px;">Refresh</button>
+                        </div>
+
+                        <!-- Event Details Preview -->
+                        <div id="event-details" style="background-color: #1c2a42; border: 1px solid #3a4a6f; border-radius: 4px; padding: 15px; margin-bottom: 15px; display: none;">
+                            <h4 style="margin-top: 0; color: #e0e0e0;">Event Details:</h4>
+                            <div id="event-info"></div>
+                        </div>
+
+                        <!-- Delete Button -->
+                        <div style="margin-top: 15px;">
+                            <button onclick="deleteEvent()" id="delete-event-btn" disabled style="background-color: #666; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: not-allowed;">Delete Event & All Related Data</button>
+                            <span id="delete-status" style="color: #888; margin-left: 15px;"></span>
+                        </div>
+                    </div>
+
+                    <!-- Delete JSON Files Section -->
+                    <div style="background-color: #2f1e1e; border: 1px solid #8b3a3a; border-radius: 6px; padding: 20px;">
+                        <h3 style="color: #f44336; margin-top: 0;">Delete Event Templates</h3>
+                        <p style="color: #ccc;">Delete event JSON template files. This will not affect scheduled events, only the templates used to create new events.</p>
+                        
+                        <!-- JSON File Selection -->
+                        <div style="margin-bottom: 15px;">
+                            <label for="json-to-delete" style="display: block; margin-bottom: 5px; font-weight: bold;">Select JSON Template to Delete:</label>
+                            <select id="json-to-delete" style="width: 100%; max-width: 500px; padding: 8px; background-color: #1c2a42; color: #e0e0e0; border: 1px solid #3a4a6f; border-radius: 4px;">
+                                <option value="">Loading JSON files...</option>
+                            </select>
+                            <button onclick="refreshJsonFilesList()" style="background-color: #3a4a6f; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 10px;">Refresh</button>
+                        </div>
+
+                        <!-- JSON File Details Preview -->
+                        <div id="json-details" style="background-color: #1c2a42; border: 1px solid #3a4a6f; border-radius: 4px; padding: 15px; margin-bottom: 15px; display: none;">
+                            <h4 style="margin-top: 0; color: #e0e0e0;">File Details:</h4>
+                            <div id="json-info"></div>
+                        </div>
+
+                        <!-- Delete JSON Button -->
+                        <div style="margin-top: 15px;">
+                            <button onclick="deleteJsonFile()" id="delete-json-btn" disabled style="background-color: #666; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: not-allowed;">Delete JSON Template</button>
+                            <span id="delete-json-status" style="color: #888; margin-left: 15px;"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- External JavaScript -->
+    <script src="{{ url_for('static', filename='js/database_viewer.js') }}"></script>
+</body>
+</html>

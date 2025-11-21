@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sign In</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container">
+        <!-- Event Handler Status Warning -->
+        <div class="event-handler-warning" id="handler-warning">
+            <div class="warning-content">
+                <div class="warning-icon">⚠️</div>
+                <div class="warning-text">
+                    <div class="warning-title">Event Handler Status</div>
+                    <div class="warning-subtitle" id="handler-status-text">Checking event handler status...</div>
+                </div>
+            </div>
+            <div class="warning-actions">
+                <button class="warning-btn" onclick="window.location.href='/event_monitor'">Monitor</button>
+                <button class="warning-btn start-btn" id="start-handler-btn" onclick="startEventHandler()" style="display: none;">Start Handler</button>
+            </div>
+        </div>
+
+        <!-- System Status Cards -->
+        <div class="status-cards">
+            <div class="status-card checking" id="minecraft-status-card">
+                <div class="status-title">Minecraft Server</div>
+                <div class="status-value" id="minecraft-status">Checking...</div>
+                <div class="status-subtitle">Server connectivity</div>
+            </div>
+
+            <div class="status-card checking" id="rcon-status-card">
+                <div class="status-title">RCON Connection</div>
+                <div class="status-value" id="rcon-status">Checking...</div>
+                <div class="status-subtitle">Remote console</div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="table-container">
+            <!-- Calendar Panel -->
+            <div class="panel">
+                <h2>Recent Events <button class="refresh-btn" onclick="refreshCalendar()">Refresh</button></h2>
+                <table id="calendar-table">
+                    <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th>Start</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Event JSON Panel -->
+            <div class="panel">
+                <h2>Available Event Types <button class="refresh-btn" onclick="refreshEventFiles()">Refresh</button></h2>
+                <table id="event-json-table">
+                    <thead>
+                        <tr>
+                            <th>Event Template</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+                <pre id="event-json-content" style="display: none;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- External JavaScript -->
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+</body>
+</html>

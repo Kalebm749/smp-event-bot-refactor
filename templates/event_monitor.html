@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Event Handler Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container">
+        <h1 style="text-align: center;">Event Handler Monitor</h1>
+        
+        <!-- Event Handler Status Card -->
+        <div class="event-handler-status-card" id="handler-status-card">
+            <div class="handler-status-icon" id="handler-icon">⚙️</div>
+            <div class="handler-status-text">
+                <h2>Event Handler</h2>
+                <div class="handler-status-label" id="status">Checking...</div>
+                <p class="handler-status-description" id="status-description">Initializing status check...</p>
+            </div>
+            <div class="handler-controls">
+                <button class="handler-btn handler-btn-start" id="start-btn">
+                    <span>▶</span> Start
+                </button>
+                <button class="handler-btn handler-btn-stop" id="stop-btn">
+                    <span>⏹</span> Stop
+                </button>
+            </div>
+        </div>
+
+        <!-- Server Info Cards -->
+        <div class="health-checks">
+            <div class="health-card checking" id="server-info-card">
+                <div class="health-title">
+                    <div class="health-status-indicator checking" id="server-indicator"></div>
+                    Server Information
+                </div>
+                <div class="health-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Server IP:</span>
+                        <span class="detail-value" id="server-ip">Loading...</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Players Online:</span>
+                        <span class="detail-value" id="players-online">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Last Update:</span>
+                        <span class="detail-value" id="server-last-update">-</span>
+                    </div>
+                </div>
+                <button class="refresh-health" onclick="refreshServerInfo()">Refresh</button>
+            </div>
+
+            <div class="health-card checking" id="overall-status-card">
+                <div class="health-title">
+                    <div class="health-status-indicator checking" id="overall-indicator"></div>
+                    System Status
+                </div>
+                <div class="health-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Minecraft:</span>
+                        <span class="detail-value" id="minecraft-status-text">Checking...</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">RCON:</span>
+                        <span class="detail-value" id="rcon-status-text">Checking...</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Overall:</span>
+                        <span class="detail-value" id="overall-status-text">Checking...</span>
+                    </div>
+                </div>
+                <button class="refresh-health" onclick="refreshSystemStatus()">Refresh</button>
+            </div>
+        </div>
+
+        <!-- Health Checks -->
+        <div class="health-checks">
+            <!-- Minecraft Server Health -->
+            <div class="health-card checking" id="minecraft-card">
+                <div class="health-title">
+                    <div class="health-status-indicator checking" id="minecraft-indicator"></div>
+                    Minecraft Server
+                </div>
+                <div class="health-details" id="minecraft-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value" id="minecraft-status">Checking...</span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">Last Check:</span>
+                        <span class="detail-value" id="minecraft-last-check">-</span>
+                    </div>
+                </div>
+                <button class="refresh-health" onclick="checkMinecraftHealth()">Refresh</button>
+            </div>
+
+            <!-- RCON Health -->
+            <div class="health-card checking" id="rcon-card">
+                <div class="health-title">
+                    <div class="health-status-indicator checking" id="rcon-indicator"></div>
+                    RCON Connection
+                </div>
+                <div class="health-details" id="rcon-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value" id="rcon-status">Checking...</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Response Time:</span>
+                        <span class="detail-value" id="rcon-response-time">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Last Check:</span>
+                        <span class="detail-value" id="rcon-last-check">-</span>
+                    </div>
+                </div>
+                <button class="refresh-health" onclick="checkRconHealth()">Refresh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- External JavaScript -->
+    <script src="{{ url_for('static', filename='js/event_monitor.js') }}"></script>
+</body>
+</html>
